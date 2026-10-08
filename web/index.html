@@ -103,7 +103,7 @@
   <button class="primary" id="scan">🔍 Run scan</button>
   <div id="log"></div>
   <section class="heat" id="heat"></section>
-  <div class="narrow"><div id="out"></div><div id="research"></div><div id="dips"></div></div>
+  <div class="narrow"><div id="active"></div><div id="out"></div><div id="research"></div><div id="dips"></div></div>
   <footer>Research tool, not financial advice. Backtests include only stocks listed today (survivorship bias); probabilities on pick cards are haircut 30%.</footer>
 </main>
 <script>
@@ -286,6 +286,42 @@ function renderDips(d) {
   document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { STYLE = b.dataset.st; renderDips(DIPS); });
 }
 
+// ---------- active mega-cap trader (IBS) ----------
+function renderActive(a) {
+  if (!a || a.empty) { $("#active").innerHTML = ""; return; }
+  const S = a.strategies, k = a.candidate, m = S[k], L = a.live;
+  const f = x => x == null ? "–" : `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}%`;
+  const row = (n, lab) => { const x = S[n]; return `<tr><td>${lab}</td><td>${f(x.full.cagr)}</td><td>${f(x.in_sample.cagr)}</td><td>${f(x.out_sample.cagr)}</td><td>${x.full.sharpe.toFixed(2)}</td><td>${f(x.full.max_dd)}</td></tr>`; };
+  const yrs = Object.keys(m.years);
+  const buys = L.signals.filter(x => x.buy), held = L.positions;
+  const CHECK = {oos_cagr_beats_spy: "2021–26 return above SPY", oos_sharpe_beats_spy: "2021–26 risk-adjusted return (Sharpe) above SPY",
+    oos_beats_holding_same_stocks: "beats simply holding the same stocks", beats_random_timing: "beats random timing",
+    in_sample_also_beats_spy: "2016–20 return also above SPY", neighbours_beat_spy_oos: "nearby settings also beat SPY"};
+  const failed = Object.entries(m.checks).filter(([q, v]) => !v).map(([q]) => CHECK[q] || q);
+  $("#active").innerHTML = `<div class="card">
+    <div class="label">⚡ Active mega-cap trader · Internal Bar Strength</div>
+    <div class="sub" style="margin-top:6px">Top 30 most-traded stocks · buy at the close when it finishes in the bottom 20% of its day's range and is above its 200-day · sell on the first close above the prior day's high (max 10 days) · 10 slots</div>
+    <div class="kpis">
+      <div><small>Return / yr</small><b class="pos">${f(m.full.cagr)}</b><small>SPY ${f(S.spy.full.cagr)}</small></div>
+      <div><small>Worst drop</small><b class="neg">${f(m.full.max_dd)}</b><small>SPY ${f(S.spy.full.max_dd)}</small></div>
+      <div><small>Win rate</small><b>${pct(m.win_rate)}</b><small>${Math.round(m.trades_per_year)} trades / yr</small></div>
+    </div>
+    <div class="section"><div style="overflow-x:auto"><table><tr><th></th><th>2016–26</th><th>2016–20</th><th>2021–26</th><th>Sharpe</th><th>Max DD</th></tr>
+      ${row(k, "⚡ IBS")}${row("spy", "SPY")}${row("qqq", "QQQ")}${row("equal_weight", "Hold same 30 stocks")}${row("random_same_exits", "Random buys, same exits")}${row("rsi2", "RSI(2) (Connors)")}${row("reversal", "Weekly reversal")}</table></div></div>
+    <div class="section"><h3>📅 Year by year vs SPY</h3><div class="chips">${yrs.map(y => { const d = m.years[y] - S.spy.years[y];
+      return `<span title="IBS ${f(m.years[y])} · SPY ${f(S.spy.years[y])}">${y} <b class="${d >= 0 ? "pos" : "neg"}">${d >= 0 ? "▲" : "▼"} ${f(m.years[y])}</b></span>`; }).join("")}</div>
+      <p class="sub" style="margin-top:6px">Beat SPY in ${yrs.filter(y => m.years[y] > S.spy.years[y]).length} of ${yrs.length} years: the lead comes mostly from volatile years.</p></div>
+    <div class="section"><h3>🟢 Buy signals at ${L.asof} close</h3>${buys.length ? `<div class="chips">${buys.map(x => `<span>${esc(x.symbol)} · IBS ${x.ibs}</span>`).join("")}</div>` : `<p class="sub">None today.</p>`}</div>
+    ${held.length ? `<div class="section"><h3>📒 Model book (open positions)</h3><table><tr><th>Ticker</th><th>Since</th><th>P/L</th><th>Sell if close &gt;</th></tr>
+      ${held.map(h => `<tr><td>${esc(h.symbol)}</td><td>${h.since.slice(5)}</td><td class="${h.pnl >= 0 ? "pos" : "neg"}">${f(h.pnl)}</td><td>${money(h.sell_if_close_above)}</td></tr>`).join("")}</table></div>` : ""}
+    <div class="section"><h3>⚠️ Honest caveats</h3><ul>
+      <li>Didn't pass every pre-set check: ${esc(failed.join(", ") || "none")}.</li>
+      <li>Very cost-sensitive: at 0.15% per side instead of 0.05%, returns fall to ${f(S.ibs_cost_15bp.full.cagr)}/yr.</li>
+      <li>Needs end-of-day discipline (market-on-close orders); buying at the next open instead returned ${f(S.ibs_next_open.full.cagr)}/yr.</li>
+      <li>Backtests include delisted stocks where available, but still can't capture every real-world friction.</li></ul></div>
+  </div>`;
+}
+
 // ---------- research: published strategies vs SPY ----------
 const RS = [["spy", "SPY (buy & hold)", "var(--text)"], ["jt_mom", "12-1 momentum (Jegadeesh-Titman)", "#2a78d6"],
             ["clenow", "Stocks on the Move (Clenow)", "#eb6834"], ["gem", "Dual momentum (Antonacci)", "#1baf7a"],
@@ -337,8 +373,8 @@ function drawResearch(S) {
 }
 
 async function load() {
-  const [l, h, d, r] = await Promise.all(["/api/latest", "/api/heatmap", "/api/dips", "/api/research"].map(u => fetch(u).then(r => r.json())));
-  render(l); renderHeat(h); renderDips(d); renderResearch(r);
+  const [l, h, d, r, a] = await Promise.all(["/api/latest", "/api/heatmap", "/api/dips", "/api/research", "/api/active"].map(u => fetch(u).then(r => r.json())));
+  render(l); renderHeat(h); renderDips(d); renderResearch(r); renderActive(a);
 }
 
 async function poll() {

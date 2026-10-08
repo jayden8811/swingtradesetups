@@ -66,7 +66,8 @@ def atr(w, n=20):
 def large_caps(w, k=500):
     dv = (w["close"] * w["volume"]).rolling(60).mean()
     ok = w["close"].notna().rolling(252).count() >= 252
-    dv = dv.where(ok & (w["close"] >= 5)).drop(columns=[e for e in ETFS if e in dv], errors="ignore")
+    funds = set(ETFS) | set(universe.BENCH)        # benchmark/sector ETFs are not stocks
+    dv = dv.where(ok & (w["close"] >= 5)).drop(columns=[e for e in funds if e in dv], errors="ignore")
     return dv.rank(axis=1, ascending=False) <= k
 
 

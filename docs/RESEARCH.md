@@ -39,3 +39,39 @@ Context from the literature:
 - **Momentum settings**: the 100-stock version matched SPY's return almost exactly (+15.0% vs +15.1%). The 25-stock version had a −63% drawdown.
 - **Trend and dual momentum**: these cut drawdowns in theory but lagged badly in a decade where SPY rarely stayed down for long.
 - **The site**: it shows 12-1 momentum's current portfolio, clearly labeled as not passing, for anyone who wants to accept that risk.
+
+---
+
+# Active Mega-Cap Trading: Buy Weakness, Sell the Bounce
+
+Run it: `python -m swing active` (about 1 minute). The results appear on the site under ⚡.
+
+**Setup**
+- **Universe**: the point-in-time 30 most-traded stocks (MSFT, NVDA, AAPL, …), delisted names included.
+- **Periods**: 2016–2020 in-sample, 2021–2026 out-of-sample.
+- **Costs**: 0.05% per side.
+- **Sizing**: 10 equal slots.
+- **Controls**: SPY, QQQ, holding the same 30 stocks, and random entries with the same exits.
+
+| Strategy (published source) | 2016–26 | 2016–20 | 2021–26 | Sharpe | Max DD | Time in market |
+|---|---|---|---|---|---|---|
+| **IBS** (Pagonidis; arXiv 2306.12434): buy close in bottom 20% of day's range above 200-day; sell close > prior high | **+19.7%** | +20.6% | +19.1% | 0.97 | −29% | 62% |
+| RSI(2) (Connors & Alvarez 2008) | +13.6% | +7.4% | +19.4% | 0.92 | −13% | 28% |
+| Weekly reversal (Lehmann 1990; de Groot et al. 2010) | +5.9% | +10.2% | +2.1% | 0.34 | −57% | 78% |
+| SPY | +15.1% | +15.1% | +14.9% | 0.92 | −32% | 100% |
+| QQQ | +20.5% | +24.4% | +17.1% | 0.97 | −37% | 100% |
+| Hold the same 30 stocks | +15.9% | +16.6% | +15.2% | 0.70 | −50% | 100% |
+| Random entries, same exits | +7.3% | +7.8% | +7.0% | 0.44 | −42% | 64% |
+
+**Strongest candidate: IBS.**
+- It beat SPY and the same stocks held passively, in both halves, and timing clearly matters (random entries returned 7%).
+- Nearby settings also held up: thresholds of 0.15 and 0.25, and next-open entry at +18.4%.
+
+**What it didn't pass:**
+- Its 2021–26 Sharpe (0.85) was below SPY's (0.92).
+- It beat SPY in only 5 of 11 calendar years; most of the lead came from volatile years (2020, 2025, 2026).
+- It roughly matched QQQ over the whole period.
+
+**Very cost-sensitive**: at 0.15% per side it returns +10.7%/yr. Use commission-free, liquid names with market-on-close orders.
+
+**RSI(2)** was excellent out-of-sample (Sharpe 1.10, −13% max DD while in the market only 28% of the time) but weak in 2016–20.

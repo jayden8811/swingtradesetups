@@ -158,3 +158,14 @@ def test_regression_score_prefers_smooth_uptrend():
     noisy = smooth * np.exp(rng.normal(0, 0.05, 120))
     sc = M.regression_score(pd.DataFrame({"a": smooth, "b": noisy}, index=idx)).iloc[-1]
     assert sc["a"] > sc["b"] > -1
+
+
+def test_active_simulator_round_trip():
+    from swing import active as A
+    idx = pd.bdate_range("2020-01-01", periods=6)
+    px = pd.DataFrame({"X": [100, 100, 90, 95, 99, 99.0], "BIL": [50.0] * 6}, index=idx)
+    ind = {"C": px, "O": px, "H": px + 1, "univ": pd.DataFrame({"X": [True] * 6, "BIL": [False] * 6}, index=idx)}
+    entry = pd.DataFrame({"X": [False, False, True, False, False, False], "BIL": [False] * 6}, index=idx)
+    r = A.simulate(ind, entry, lambda s, i, h: px["X"].iloc[i] > 96, priority=px, slots=1, start=str(idx[0].date()))
+    assert len(r["trades"]) == 1 and r["trades"][0]["ret"] == pytest.approx(99 / 90 * (1 - A.SIDE_COST) ** 2 - 1)
+    assert r["equity"].iloc[-1] == pytest.approx(1 + r["trades"][0]["ret"])

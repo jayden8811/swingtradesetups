@@ -1,14 +1,23 @@
-"""python -m swing [serve|scan|backtest|dips|research]"""
+"""python -m swing [serve|scan|backtest|dips|research|active]"""
 import argparse
 import json
 
 
 def main():
     ap = argparse.ArgumentParser(prog="swing")
-    ap.add_argument("cmd", choices=["serve", "scan", "backtest", "dips", "research"], nargs="?", default="serve")
+    ap.add_argument("cmd", choices=["serve", "scan", "backtest", "dips", "research", "active"], nargs="?", default="serve")
     ap.add_argument("--port", type=int, default=8000)
     a = ap.parse_args()
-    if a.cmd == "research":
+    if a.cmd == "active":
+        from . import active
+        r = active.run()
+        print(f"{'':20}{'full CAGR':>10}{'Sharpe':>8}{'maxDD':>8} | {'IS CAGR':>8} | {'OOS CAGR':>9}{'Sharpe':>8}{'maxDD':>8} | expo  trades/yr win  avg")
+        for n, m in r["strategies"].items():
+            f, i, o = m["full"], m["in_sample"], m["out_sample"]
+            print(f"{n:20}{f['cagr']:>+10.1%}{f['sharpe']:>8.2f}{f['max_dd']:>8.0%} | {i['cagr']:>+8.1%} | {o['cagr']:>+9.1%}{o['sharpe']:>8.2f}{o['max_dd']:>8.0%} | "
+                  f"{m['exposure']:.0%} {m['trades_per_year']:6.0f} " + (f"{m['win_rate']:.0%} {m['avg_trade']:+.2%}" if m['win_rate'] is not None else "") + (f"  passes={m['passes']} {m['checks']}" if "passes" in m else ""))
+        print("applied:", r["applied"])
+    elif a.cmd == "research":
         from . import momentum
         r = momentum.run()
         for n, m in r["strategies"].items():
