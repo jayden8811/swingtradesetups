@@ -1,14 +1,21 @@
-"""python -m swing [serve|scan|backtest|dips]"""
+"""python -m swing [serve|scan|backtest|dips|research]"""
 import argparse
 import json
 
 
 def main():
     ap = argparse.ArgumentParser(prog="swing")
-    ap.add_argument("cmd", choices=["serve", "scan", "backtest", "dips"], nargs="?", default="serve")
+    ap.add_argument("cmd", choices=["serve", "scan", "backtest", "dips", "research"], nargs="?", default="serve")
     ap.add_argument("--port", type=int, default=8000)
     a = ap.parse_args()
-    if a.cmd == "dips":
+    if a.cmd == "research":
+        from . import momentum
+        r = momentum.run()
+        for n, m in r["strategies"].items():
+            print(f"{n:16} CAGR {m['cagr']:+.1%}  Sharpe {m['sharpe']:.2f}  maxDD {m['max_dd']:.1%}  "
+                  f"beat SPY 36m {m['win_36m']:.0%}  years {m['years_beat_spy']}/{m['n_years']}" + (f"  passes={m['passes']}" if "passes" in m else ""))
+        print("applied:", r["applied"], "| live:", r["live"]["strategy"], len(r["live"]["holdings"]), "holdings")
+    elif a.cmd == "dips":
         from . import dips
         dips.run()
     elif a.cmd == "backtest":

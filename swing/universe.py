@@ -39,6 +39,21 @@ def symbols(progress=None):
     return keep
 
 
+def all_symbols_pit():
+    """Every common-stock-like ticker on a major exchange, including delisted ones (status=inactive),
+    regardless of today's price or liquidity. Liquidity is then filtered point-in-time, which removes most
+    of the "only today's survivors" bias. Inactive ARCA/BATS listings are skipped (mostly ETFs/ETNs)."""
+    path = C.CACHE_DIR / f"universe_pit_{date.today()}.json"
+    if path.exists():
+        return json.loads(path.read_text())
+    act = [a for a in alpaca.assets() if _clean_name(dict(a, tradable=True))]
+    ina = alpaca._get(f"{alpaca.PAPER}/v2/assets", {"status": "inactive", "asset_class": "us_equity"})
+    ina = [a for a in ina if a.get("exchange") in ("NYSE", "NASDAQ", "AMEX") and _clean_name(dict(a, tradable=True))]
+    syms = sorted({a["symbol"] for a in act + ina})
+    path.write_text(json.dumps(syms))
+    return syms
+
+
 def completed_sessions(df):
     """Drop today's partial bar while the market is still open."""
     now = datetime.now(NY)

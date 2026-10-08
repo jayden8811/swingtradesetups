@@ -138,3 +138,23 @@ def test_heatmap_rating_caps_and_floors():
     base = {"D_rsi2": 50, "D_dip": 0.01, "close": 100, "sma200": 90, "D": False}
     assert rating({**base, "D_uptrend": False}, 99)[0] <= 45
     assert rating({**base, "D_uptrend": True, "D": True}, 1)[0] >= 75
+
+
+def test_portfolio_engine_matches_buy_and_hold():
+    from swing import momentum as M
+    idx = pd.bdate_range("2020-01-01", periods=30)
+    px = pd.DataFrame({"SPY": np.linspace(100, 130, 30), "BIL": np.full(30, 50.0)}, index=idx)
+    w = {"open": px}
+    res = M.run_portfolio(w, [0], lambda i, cur: {"SPY": 1.0}, start=str(idx[1].date()))
+    expected = px["SPY"].iloc[-1] / px["SPY"].iloc[1] * (1 - M.COST)
+    assert res["equity"].iloc[-1] == pytest.approx(expected)
+
+
+def test_regression_score_prefers_smooth_uptrend():
+    from swing import momentum as M
+    idx = pd.bdate_range("2020-01-01", periods=120)
+    rng = np.random.default_rng(1)
+    smooth = np.exp(np.linspace(0, 0.3, 120))
+    noisy = smooth * np.exp(rng.normal(0, 0.05, 120))
+    sc = M.regression_score(pd.DataFrame({"a": smooth, "b": noisy}, index=idx)).iloc[-1]
+    assert sc["a"] > sc["b"] > -1

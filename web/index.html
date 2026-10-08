@@ -47,6 +47,16 @@
   th { color: var(--muted); font-weight: 500; }
   td:first-child, th:first-child { text-align: left; }
   svg.curve { width: 100%; height: 120px; display: block; margin-top: 10px; }
+  .rs-chart { position: relative; margin-top: 12px; }
+  .rs-chart svg { width: 100%; height: 190px; display: block; }
+  .rs-tip { position: absolute; top: 0; pointer-events: none; background: var(--card); border: 1px solid var(--line);
+            border-radius: 8px; padding: 6px 8px; font-size: 12px; text-align: left; white-space: nowrap; display: none; }
+  .keys { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .keys i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 8px; }
+  .chips span { background: var(--soft); border-radius: 6px; padding: 2px 6px; font-size: 12px; }
+  @media (max-width: 480px) { #research td, #research th { font-size: 11px; padding: 5px 2px; } }
+  .ok { color: var(--green); } .no { color: var(--red); }
   h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
   .sub { color: var(--muted); font-size: 13px; }
   .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--soft); font-size: 13px; margin: 14px 4px 0; }
@@ -93,7 +103,7 @@
   <button class="primary" id="scan">🔍 Run scan</button>
   <div id="log"></div>
   <section class="heat" id="heat"></section>
-  <div class="narrow"><div id="out"></div><div id="dips"></div></div>
+  <div class="narrow"><div id="out"></div><div id="research"></div><div id="dips"></div></div>
   <footer>Research tool, not financial advice. Backtests include only stocks listed today (survivorship bias); probabilities on pick cards are haircut 30%.</footer>
 </main>
 <script>
@@ -276,9 +286,59 @@ function renderDips(d) {
   document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { STYLE = b.dataset.st; renderDips(DIPS); });
 }
 
+// ---------- research: published strategies vs SPY ----------
+const RS = [["spy", "SPY (buy & hold)", "var(--text)"], ["jt_mom", "12-1 momentum (Jegadeesh-Titman)", "#2a78d6"],
+            ["clenow", "Stocks on the Move (Clenow)", "#eb6834"], ["gem", "Dual momentum (Antonacci)", "#1baf7a"],
+            ["faber", "10-month trend (Faber)", "#e87ba4"]];
+function renderResearch(r) {
+  if (!r || r.empty) { $("#research").innerHTML = ""; return; }
+  const S = r.strategies, f = x => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}%`;
+  const rows = [...RS.map(x => x[0]), "equal_weight"].map(k => { const m = S[k];
+    const name = k === "equal_weight" ? "Equal-weight same universe" : RS.find(x => x[0] === k)[1];
+    return `<tr><td>${name}${m.passes ? " ✅" : ""}</td><td>${f(m.cagr)}</td><td>${m.sharpe.toFixed(2)}</td><td>${f(m.max_dd)}</td><td>${m.beta.toFixed(2)}</td><td>${k === "spy" ? "–" : f(m.alpha)}</td><td>${k === "spy" ? "–" : pct(m.win_36m)}</td></tr>`; }).join("");
+  const checks = ["jt_mom", "clenow", "gem", "faber"].map(k => {
+    const c = S[k].checks, lab = {cagr_beats_spy: "return > SPY", sharpe_beats_spy: "Sharpe > SPY", beats_equal_weight: "> equal-weight",
+      wins_60pct_rolling_36m: "wins ≥60% of 3-yr windows", neighbours_beat_spy: "robust to settings"};
+    return `<div class="row"><span>${RS.find(x => x[0] === k)[1]}</span><span style="text-align:right">${Object.entries(c).map(([q, v]) => `<span class="${v ? "ok" : "no"}" title="${lab[q]}">${v ? "✓" : "✗"}</span>`).join(" ")}</span></div>`; }).join("");
+  const live = r.live, lname = RS.find(x => x[0] === live.strategy)[1];
+  $("#research").innerHTML = `<div class="card">
+    <div class="label">📚 Published strategies vs SPY · ${r.start.slice(0, 4)}–${r.end.slice(0, 4)}</div>
+    <div class="sub" style="margin-top:6px">Growth of $10,000 (hover) · rules as published · trade next open · 0.10% cost · delisted stocks included where available</div>
+    <div class="rs-chart"><svg id="rsSvg"></svg><div class="rs-tip" id="rsTip"></div></div>
+    <div class="keys">${RS.map(([k, n, c]) => `<span><i style="background:${c}"></i>${n}</span>`).join("")}</div>
+    <div class="section"><div style="overflow-x:auto"><table><tr><th>Strategy</th><th>CAGR</th><th>Sharpe</th><th>Max DD</th><th>Beta</th><th>Alpha</th><th>Beats SPY (3-yr)</th></tr>${rows}</table></div>
+      <p class="sub" style="margin-top:6px">Alpha = return left after accounting for how much market risk (beta) was taken.</p></div>
+    <div class="section"><h3>🧪 Pre-registered test (all 5 must pass)</h3>${checks}
+      <p class="sub">return > SPY · Sharpe > SPY · beats equal-weight · wins ≥60% of 3-yr windows · nearby settings also beat SPY</p></div>
+    <div class="section"><h3>${r.applied ? "✅ Applied" : "🚫 Nothing passed — closest candidate shown, not applied"}: ${lname}</h3>
+      <p class="sub">Current portfolio from ${live.last_rebalance} · rebalances at each month end · ${live.holdings.length} positions</p>
+      <div class="chips">${live.holdings.map(h => `<span>${esc(h.symbol)} ${(h.weight * 100).toFixed(1)}%</span>`).join("")}</div></div>
+  </div>`;
+  drawResearch(S);
+}
+function drawResearch(S) {
+  const svg = $("#rsSvg"), W = svg.clientWidth || 560, H = 190, P = 6;
+  const dates = S.spy.curve.map(p => p.d);
+  const series = RS.map(([k, n, c]) => ({k, n, c, v: S[k].curve.map(p => Math.log(p.v))}));
+  const all = series.flatMap(s => s.v), lo = Math.min(...all), hi = Math.max(...all);
+  const x = i => P + i / (dates.length - 1) * (W - 2 * P), y = v => H - P - (v - lo) / (hi - lo) * (H - 2 * P);
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  svg.innerHTML = `<line x1="${P}" x2="${W - P}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line)" stroke-dasharray="3 3"/>` +
+    series.map(s => `<polyline points="${s.v.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ")}" fill="none" stroke="${s.c}" stroke-width="${s.k === "spy" ? 2.5 : 2}"/>`).join("") +
+    `<line id="rsX" y1="${P}" y2="${H - P}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/>`;
+  const tip = $("#rsTip");
+  svg.onpointermove = e => {
+    const b = svg.getBoundingClientRect(), i = Math.max(0, Math.min(dates.length - 1, Math.round((e.clientX - b.left - P) / (b.width - 2 * P) * (dates.length - 1))));
+    const X = $("#rsX"); X.setAttribute("x1", x(i)); X.setAttribute("x2", x(i)); X.setAttribute("visibility", "visible");
+    tip.style.display = "block"; tip.style.left = `${Math.min(b.width - 190, Math.max(0, e.clientX - b.left + 10))}px`;
+    tip.innerHTML = `<b>${dates[i]}</b><br>` + series.map(s => `<span style="color:${s.c}">●</span> ${s.n.split(" (")[0]}: $${(Math.exp(s.v[i]) * 10000).toLocaleString(undefined, {maximumFractionDigits: 0})}`).join("<br>");
+  };
+  svg.onpointerleave = () => { tip.style.display = "none"; $("#rsX").setAttribute("visibility", "hidden"); };
+}
+
 async function load() {
-  const [l, h, d] = await Promise.all(["/api/latest", "/api/heatmap", "/api/dips"].map(u => fetch(u).then(r => r.json())));
-  render(l); renderHeat(h); renderDips(d);
+  const [l, h, d, r] = await Promise.all(["/api/latest", "/api/heatmap", "/api/dips", "/api/research"].map(u => fetch(u).then(r => r.json())));
+  render(l); renderHeat(h); renderDips(d); renderResearch(r);
 }
 
 async function poll() {

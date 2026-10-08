@@ -45,8 +45,9 @@ class Handler(BaseHTTPRequestHandler):
             if pipeline.LATEST.exists():
                 return self._send(200, pipeline.LATEST.read_bytes())
             return self._send(200, {"empty": True})
-        if self.path in ("/api/heatmap", "/api/dips"):
-            f = C.DATA_DIR / ("heatmap.json" if self.path == "/api/heatmap" else "dips_report.json")
+        files = {"/api/heatmap": "heatmap.json", "/api/dips": "dips_report.json", "/api/research": "momentum_report.json"}
+        if self.path in files:
+            f = C.DATA_DIR / files[self.path]
             return self._send(200, f.read_bytes() if f.exists() else {"empty": True})
         if self.path == "/api/status":
             return self._send(200, STATE)
