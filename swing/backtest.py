@@ -45,7 +45,8 @@ def run(progress=print, random_frac=0.01, seed=7):
         o, h, l, c = (df[k].to_numpy() for k in ("open", "high", "low", "close"))
         rk = {k: ranks[k][s].reindex(f.index).to_numpy() for k in scoring.RANKED}
         sig = {"A": f["A"].to_numpy(), "C": f["C"].to_numpy(),
-               "B": f["B_raw"].to_numpy() & (np.nan_to_num(rk["rs_raw"]) >= C.B_RS_MIN)}
+               "B": f["B_raw"].to_numpy() & (np.nan_to_num(rk["rs_raw"]) >= C.B_RS_MIN),
+               "D": f["D"].to_numpy()}
         rand = liquid.to_numpy() & (rng.random(len(f)) < random_frac) & f["atr"].notna().to_numpy()
         liq = liquid.to_numpy()
         for setup, mask in list(sig.items()) + [("RANDOM", rand)]:
@@ -110,12 +111,12 @@ def summarize(t):
 
 def report(stats):
     lines = ["", "setup   trades  win%   baseline  avgR    medianDays"]
-    for s in ("A", "B", "C", "RANDOM"):
+    for s in ("A", "B", "C", "D", "RANDOM"):
         c = stats["cells"].get(s)
         if c:
             lines.append(f"{s:7} {c['n']:6}  {c['win_rate']:.1%}  {c['baseline']:.1%}     "
                          f"{c['avg_r']:+.3f}  {c['days_median']}")
-    for s in ("A", "B", "C"):
+    for s in ("A", "B", "C", "D"):
         for b in ("0-50", "50-60", "60-70", "70-80", "80-100"):
             c = stats["cells"].get(f"{s}|{b}")
             if c:

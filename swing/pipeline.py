@@ -6,10 +6,11 @@ from datetime import date, datetime, timedelta
 import numpy as np
 import pandas as pd
 
-from . import alpaca, config as C, llm, plan as P, regime as R, scoring as S, universe, yahoo
+from . import alpaca, config as C, heatmap, llm, plan as P, regime as R, scoring as S, universe, yahoo
+from .dips import REPORT as DIP_REPORT
 from .setups import features
 
-SETUP_NAMES = {"A": "Base Breakout", "B": "Pullback in Uptrend", "C": "Post-Earnings Drift"}
+SETUP_NAMES = {"A": "Base Breakout", "B": "Pullback in Uptrend", "C": "Post-Earnings Drift", "D": "Buy the Dip"}
 LATEST = C.DATA_DIR / "latest.json"
 PICKS_LOG = C.DATA_DIR / "picks.jsonl"
 
@@ -61,11 +62,17 @@ def scan(progress=print):
     order = sorted(etf_ret, key=etf_ret.get, reverse=True)
     sector_rs = {e: float(np.interp(i, [2, len(order) - 3], [100, 0])) for i, e in enumerate(order)}
 
+    progress("🗺️ building heat map")
+    dip_report = json.loads(DIP_REPORT.read_text()) if DIP_REPORT.exists() else None
+    heatmap.build(feats, ranks, asof, dip_report)
+
     progress("🔎 detecting setups")
     cands, rejected = [], []
     for s, (df, f) in feats.items():
         row, rk = f.iloc[-1], ranks.loc[s].to_dict()
-        hits = [k for k in ("A", "C") if row[k]] + (["B"] if row["B_raw"] and rk["rs_raw"] >= C.B_RS_MIN else [])
+        hits = [k for k in ("A", "C", "D") if k in C.ACTIVE_SETUPS and row[k]]
+        if "B" in C.ACTIVE_SETUPS and row["B_raw"] and rk["rs_raw"] >= C.B_RS_MIN:
+            hits.append("B")
         for setup in hits:
             p, why = P.build(f, len(f) - 1, setup, df["high"].to_numpy())
             if p is None:
@@ -157,6 +164,11 @@ def scan(progress=print):
             sectors.add(c.get("sector_etf"))
         c["published"] = ok
 
+    status = {r["symbol"]: f"not picked: {r['reason']}" for r in rejected if r["setup"] in C.ACTIVE_SETUPS}
+    status.update({c["symbol"]: "👀 runner-up" for c in top if not c["published"]})
+    status.update({c["symbol"]: "🎯 today's pick" for c in picks})
+    heatmap.annotate(status)
+
     result = {
         "generated": datetime.now().isoformat(timespec="seconds"), "asof": asof, "regime": regime,
         "threshold": threshold, "max_picks": max_picks, "llm": llm_on,
@@ -196,7 +208,9 @@ def digest(c, regime):
           "B": {"pullback_from_20d_high": row["B_pullback"], "pullback_volume_ratio": row["B_pb_vol"],
                 "dist_to_ma_atr": row["B_dist_ma"], "trigger_rvol": row["rvol"]},
           "C": {"gap_date": row["C_gap_date"], "gap_size": row["C_gap_size"], "gap_atr": row["C_gap_atr"],
-                "gap_rvol": row["C_gap_rvol"], "days_since_gap": row["C_gap_age"]}}[c["setup"]]
+                "gap_rvol": row["C_gap_rvol"], "days_since_gap": row["C_gap_age"]},
+          "D": {"rsi2": row["D_rsi2"], "dip_from_20d_high": row["D_dip"], "target_20d_high": row["D_t1"],
+                "dist_above_sma200_atr": (row["close"] - row["sma200"]) / row["atr"]}}[c["setup"]]
     c20 = df["close"].tail(21)
     fund = {k: v for k, v in c["fund"].items() if k not in ("symbol",)}
     return {

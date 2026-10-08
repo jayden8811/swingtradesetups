@@ -1,14 +1,17 @@
-"""python -m swing [serve|scan|backtest]"""
+"""python -m swing [serve|scan|backtest|dips]"""
 import argparse
 import json
 
 
 def main():
     ap = argparse.ArgumentParser(prog="swing")
-    ap.add_argument("cmd", choices=["serve", "scan", "backtest"], nargs="?", default="serve")
+    ap.add_argument("cmd", choices=["serve", "scan", "backtest", "dips"], nargs="?", default="serve")
     ap.add_argument("--port", type=int, default=8000)
     a = ap.parse_args()
-    if a.cmd == "backtest":
+    if a.cmd == "dips":
+        from . import dips
+        dips.run()
+    elif a.cmd == "backtest":
         from . import backtest
         backtest.run()
     elif a.cmd == "scan":

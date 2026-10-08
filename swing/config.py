@@ -28,6 +28,9 @@ BASE_MAX_DEPTH = 0.30
 A_RVOL, A_CLV, A_MAX_EXT_ATR = 1.5, 0.6, 0.75
 B_RS_MIN = 70
 C_GAP_MIN, C_GAP_ATR, C_RVOL = 0.04, 1.5, 3.0
+# Setup D (buy the dip): uptrend (close > rising SMA200, SMA50 > SMA200) + RSI(2) <= 10 + >= 5% off 20-day high
+D_RSI2_MAX, D_MIN_DIP, D_STOP_ATR, D_MIN_RR, D_MAX_HOLD = 10, 0.05, 2.0, 1.0, 20
+ACTIVE_SETUPS = tuple(os.environ.get("SWING_SETUPS", "D").split(","))
 
 # Stage 4: trade plan
 STOP_ATR = 2.0
@@ -46,6 +49,8 @@ LIVE_EDGE_HAIRCUT = 0.7        # survivorship-bias haircut on backtested edge
 # Stage 3: factor bucket weights (QuantScore)
 WEIGHTS = {"momentum": 25, "rs": 20, "setup": 20, "volume": 10, "fundamental": 15, "positioning": 10}
 TECH_BUCKETS = ("momentum", "rs", "setup", "volume")   # backtestable, price-only
+
+HEATMAP_N = 120               # "main tickers": most-traded names by 50-day dollar volume
 
 # LLM layers
 LLM_MODEL = os.environ.get("SWING_LLM_MODEL", "claude-opus-5-5")

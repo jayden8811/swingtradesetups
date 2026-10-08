@@ -17,7 +17,36 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
          font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-  main { max-width: 620px; margin: 0 auto; padding: 48px 16px 64px; text-align: center; }
+  main { max-width: 1040px; margin: 0 auto; padding: 48px 16px 64px; text-align: center; }
+  .narrow { max-width: 620px; margin: 0 auto; }
+  /* heat map */
+  :root { --h-lo: #c9372c; --h-mid: #e7e5e4; --h-hi: #1f8a3c; }
+  @media (prefers-color-scheme: dark) { :root { --h-lo: #c9372c; --h-mid: #3a3633; --h-hi: #23a047; } }
+  .heat { margin-top: 30px; text-align: left; }
+  .heat-head { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .heat-head h2 { font-size: 17px; margin: 0; }
+  .scale { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .scale i { display: block; width: 160px; height: 8px; border-radius: 8px; background: linear-gradient(90deg, var(--h-lo), var(--h-mid), var(--h-hi)); }
+  .sector { margin: 14px 0 0; }
+  .sector h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px; font-weight: 600; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 3px; }
+  .tile { border: 0; border-radius: 6px; padding: 8px 4px 7px; text-align: center; cursor: pointer; font: inherit; line-height: 1.25; }
+  .tile b { display: block; font-size: 14px; }
+  .tile span { font-size: 12px; opacity: .85; }
+  .tile.sel { outline: 2px solid var(--text); outline-offset: 1px; }
+  #tip { max-width: 620px; margin: 14px auto 0; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 18px 0 6px; }
+  .kpis div { background: var(--soft); border-radius: 10px; padding: 10px 4px; }
+  .kpis b { display: block; font-size: 18px; }
+  .kpis small { color: var(--muted); font-size: 12px; }
+  .seg { display: inline-flex; background: var(--soft); border-radius: 10px; padding: 3px; margin-top: 12px; }
+  .seg button { border: 0; background: transparent; padding: 5px 12px; border-radius: 8px; font-size: 13px; }
+  .seg button.on { background: var(--card); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  td, th { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+  th { color: var(--muted); font-weight: 500; }
+  td:first-child, th:first-child { text-align: left; }
+  svg.curve { width: 100%; height: 120px; display: block; margin-top: 10px; }
   h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
   .sub { color: var(--muted); font-size: 13px; }
   .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--soft); font-size: 13px; margin: 14px 4px 0; }
@@ -53,7 +82,7 @@
   .pos { color: var(--green); } .neg { color: var(--red); }
   .empty { font-size: 40px; margin-bottom: 6px; }
   footer { color: var(--muted); font-size: 12px; margin-top: 40px; }
-  @media (max-width: 480px) { .grid { grid-template-columns: repeat(2, 1fr); } .sym { font-size: 36px; } }
+  @media (max-width: 480px) { .kpis { grid-template-columns: repeat(2, 1fr); } .tiles { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); } .grid { grid-template-columns: repeat(2, 1fr); } .sym { font-size: 36px; } }
 </style>
 </head>
 <body>
@@ -63,8 +92,9 @@
   <div id="chips"></div>
   <button class="primary" id="scan">🔍 Run scan</button>
   <div id="log"></div>
-  <div id="out"></div>
-  <footer>Research tool, not financial advice. Probabilities come from backtests with survivorship bias and are haircut 30%.</footer>
+  <section class="heat" id="heat"></section>
+  <div class="narrow"><div id="out"></div><div id="dips"></div></div>
+  <footer>Research tool, not financial advice. Backtests include only stocks listed today (survivorship bias); probabilities on pick cards are haircut 30%.</footer>
 </main>
 <script>
 const $ = s => document.querySelector(s);
@@ -73,7 +103,7 @@ const pct = x => x == null ? "–" : `${Math.round(x * 100)}%`;
 const sgn = x => x == null ? "–" : (x > 0 ? "+" : "") + x;
 const money = x => x == null ? "–" : `$${Number(x).toFixed(2)}`;
 const REG = {"Risk-On": "🟢", "Neutral": "🟡", "Risk-Off": "🔴"};
-const SETUP = {A: "📦 Base Breakout", B: "🪜 Pullback in Uptrend", C: "📣 Post-Earnings Drift"};
+const SETUP = {A: "📦 Base Breakout", B: "🪜 Pullback in Uptrend", C: "📣 Post-Earnings Drift", D: "🛒 Buy the Dip"};
 const AGENT = {technical: "📊 Technical", fundamental: "🧾 Fundamental", news: "📰 News", positioning: "🐋 Positioning"};
 const BUCKET = {momentum: "🚀 Momentum", rs: "💪 Rel. strength", setup: "📐 Setup quality", volume: "🔊 Volume",
                 fundamental: "🧾 Fundamentals", positioning: "🐋 Positioning"};
@@ -83,6 +113,7 @@ function ruleReasons(p) {
   const out = [];
   if (p.setup === "A") out.push(`Broke out of a ${m.base_len_days}-day base (depth ${pct(m.base_depth)}) on ${m.breakout_rvol}× normal volume`);
   if (p.setup === "B") out.push(`Bounced off a ${pct(m.pullback_from_20d_high)} pullback on light volume (${m.pullback_volume_ratio}× avg)`);
+  if (p.setup === "D") out.push(`Dipped ${pct(m.dip_from_20d_high)} from its 20-day high with RSI(2) at ${Number(m.rsi2).toFixed(1)}, while ${Number(m.dist_above_sma200_atr).toFixed(1)} ATR above a rising 200-day`);
   if (p.setup === "C") out.push(`Holding a ${m.gap_atr}-ATR earnings gap from ${m.gap_date} (${m.gap_rvol}× volume)`);
   if (r.rs_raw != null) out.push(`Relative strength beats ${r.rs_raw}% of the universe; 12-1 momentum rank ${r.mom_12_1}`);
   if (f.surprise_pct != null) out.push(`Last EPS surprise ${pct(f.surprise_pct)}${f.rev_yoy != null ? `, revenue ${sgn(Math.round(f.rev_yoy*100))}% YoY` : ""}`);
@@ -155,7 +186,100 @@ function render(r) {
   $("#out").innerHTML = html;
 }
 
-async function load() { render(await (await fetch("/api/latest")).json()); }
+// ---------- heat map ----------
+function hex2rgb(h) { h = h.trim().replace("#", ""); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); }
+function heatColor(v) {
+  const cs = getComputedStyle(document.documentElement);
+  const [lo, mid, hi] = ["--h-lo", "--h-mid", "--h-hi"].map(k => hex2rgb(cs.getPropertyValue(k)));
+  const t = Math.max(0, Math.min(100, v)) / 100;
+  const [a, b, u] = t < .5 ? [lo, mid, t / .5] : [mid, hi, (t - .5) / .5];
+  const rgb = a.map((x, i) => Math.round(x + (b[i] - x) * u));
+  const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+  return {bg: `rgb(${rgb})`, fg: lum > 0.55 ? "#1c1917" : "#ffffff"};
+}
+let HEAT = null;
+function renderHeat(h) {
+  HEAT = h;
+  if (!h || h.empty) { $("#heat").innerHTML = ""; return; }
+  const by = {};
+  h.tiles.forEach(t => (by[t.sector] = by[t.sector] || []).push(t));
+  const sectors = Object.entries(by).map(([k, v]) => [k, v.sort((a, b) => b.rating - a.rating),
+    v.reduce((s, t) => s + t.rating, 0) / v.length]).sort((a, b) => b[2] - a[2]);
+  const nSig = h.tiles.filter(t => t.signal).length;
+  $("#heat").innerHTML = `<div class="heat-head"><div><h2>🗺️ Dip-buy heat map</h2>
+      <div class="sub">${h.n} most-traded stocks · ${h.asof} · 🛒 ${nSig} meet every dip rule</div></div>
+      <div class="scale">Avoid <i></i> Best dip buy</div></div>
+    ${sectors.map(([name, tiles, avg]) => `<div class="sector"><h4>${esc(name)} · avg ${Math.round(avg)}</h4><div class="tiles">
+      ${tiles.map(t => { const c = heatColor(t.rating);
+        return `<button class="tile" data-s="${esc(t.symbol)}" style="background:${c.bg};color:${c.fg}"
+          title="${esc(t.name)} · rating ${t.rating} · ${(t.chg_1d * 100).toFixed(1)}% today">
+          <b>${t.signal ? "🛒 " : ""}${esc(t.symbol)}</b><span>${t.rating} · ${t.chg_1d >= 0 ? "+" : ""}${(t.chg_1d * 100).toFixed(1)}%</span></button>`; }).join("")}
+    </div></div>`).join("")}<div id="tip"></div>`;
+  document.querySelectorAll(".tile").forEach(b => b.onclick = () => showTile(b.dataset.s));
+}
+function showTile(sym) {
+  const t = HEAT.tiles.find(x => x.symbol === sym);
+  document.querySelectorAll(".tile").forEach(b => b.classList.toggle("sel", b.dataset.s === sym));
+  const tile = document.querySelector(`.tile[data-s="${CSS.escape(sym)}"]`);
+  tile.closest(".sector").after($("#tip"));   // show details right under the tapped sector
+  const py = t.past_year;
+  $("#tip").innerHTML = `<div class="card" style="margin-top:0">
+    <div class="label">${t.signal ? "🛒 Meets every dip rule" : t.uptrend ? "📈 In an uptrend · waiting for a dip" : "🚫 Not in an uptrend"}</div>
+    <div class="sym" style="font-size:32px">${esc(t.symbol)} <span style="font-size:20px;font-weight:600">${t.rating}</span></div>
+    <div class="name">${esc(t.name)} · ${esc(t.sector)} · ${money(t.close)}</div>
+    <div class="section">${meters({"🔻 Dip / oversold": t.parts.dip, "📈 Trend": t.parts.trend, "💪 Rel. strength": t.parts.rs})}</div>
+    <div class="stats"><span>RSI(2) ${t.rsi2}</span><span>${pct(t.dip)} off 20-day high</span></div>
+    ${t.status ? `<div class="sub" style="margin-bottom:4px">${esc(t.status)}</div>` : ""}
+    <div class="sub">${py ? `Past year: ${py.trades} dip trade${py.trades === 1 ? "" : "s"} · ${pct(py.win_rate)} won · avg ${(py.avg_ret * 100).toFixed(1)}% each` : "No qualifying dips in the past year"}</div>
+  </div>`;
+}
+
+// ---------- dip backtest ----------
+let DIPS = null, STYLE = "target";
+function curveSvg(curve) {
+  if (!curve || curve.length < 2) return "";
+  const ys = curve.map(p => p.equity), lo = Math.min(1, ...ys), hi = Math.max(1, ...ys);
+  const W = 560, H = 120, x = i => i / (curve.length - 1) * W, y = v => H - 8 - (v - lo) / (hi - lo || 1) * (H - 16);
+  const pts = curve.map((p, i) => `${x(i).toFixed(1)},${y(p.equity).toFixed(1)}`).join(" ");
+  return `<svg class="curve" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line x1="0" x2="${W}" y1="${y(1)}" y2="${y(1)}" stroke="var(--line)" stroke-dasharray="3 3"/>
+    <polyline points="${pts}" fill="none" stroke="var(--blue)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>
+    <div class="legend">Closed-trade equity, 10 equal slots · dashed = starting value</div>`;
+}
+function renderDips(d) {
+  DIPS = d;
+  if (!d || d.empty) { $("#dips").innerHTML = `<div class="card"><div class="label">🛒 Dip-buy backtest</div><p class="sub">Run <code>python -m swing dips</code> to see how every qualifying dip played out.</p></div>`; return; }
+  const st = d.styles[STYLE], y = st.past_year, r = st.random_uptrend_past_year, all = st.since_2015, pf = st.portfolio_past_year;
+  const f = x => x == null ? "–" : `${x >= 0 ? "+" : ""}${(x * 100).toFixed(2)}%`;
+  const best = [...st.per_ticker].filter(p => p.trades >= 2).sort((a, b) => b.total - a.total);
+  $("#dips").innerHTML = `<div class="card">
+    <div class="label">🛒 Dip-buy backtest · past 12 months</div>
+    <div class="sub" style="margin-top:6px">${esc(d.rules.uptrend)} · ${esc(d.rules.dip)} · buy ${esc(d.rules.entry)} · stop ${esc(d.rules.stop)}</div>
+    <div class="seg"><button data-st="target" class="${STYLE === "target" ? "on" : ""}">🎯 Exit at prior high</button><button data-st="revert" class="${STYLE === "revert" ? "on" : ""}">↩️ Exit on bounce</button></div>
+    <div class="sub" style="margin-top:6px">${esc(d.rules.exits[STYLE])}</div>
+    <div class="kpis">
+      <div><small>Trades</small><b>${y.trades}</b><small>${(y.avg_days || 0).toFixed(1)} days avg</small></div>
+      <div><small>Win rate</small><b>${pct(y.win_rate)}</b><small>random: ${pct(r.win_rate)}</small></div>
+      <div><small>Avg per trade</small><b class="${y.avg_ret >= 0 ? "pos" : "neg"}">${f(y.avg_ret)}</b><small>random: ${f(r.avg_ret)}</small></div>
+      <div><small>10-slot book</small><b class="${pf.total_return >= 0 ? "pos" : "neg"}">${f(pf.total_return)}</b><small>SPY: ${f(d.spy_1y)}</small></div>
+      <div><small>Profit factor</small><b>${y.profit_factor ? y.profit_factor.toFixed(2) : "–"}</b><small>wins $ / losses $</small></div>
+      <div><small>Max drawdown</small><b class="neg">${f(pf.max_drawdown_closed)}</b><small>closed trades</small></div>
+    </div>
+    ${curveSvg(pf.curve)}
+    <div class="section"><h3>📅 Outcome mix</h3><p>✅ ${pct(y.hit_target)} hit the exit target · ❌ ${pct(y.stopped)} stopped/red · ⏳ ${pct(y.timed_out)} timed out</p>
+      <p class="sub">Since 2015: ${all.trades} trades · ${pct(all.win_rate)} won · ${f(all.avg_ret)} avg (random uptrend days: ${f(st.random_uptrend_since_2015.avg_ret)})</p></div>
+    ${best.length ? `<div class="section"><h3>🏆 Best & worst tickers (2+ trades)</h3><table><tr><th>Ticker</th><th>Trades</th><th>Won</th><th>Compounded</th></tr>
+      ${[...best.slice(0, 5), ...best.slice(-5).reverse()].filter((v, i, a) => a.indexOf(v) === i).map(p => `<tr><td>${esc(p.symbol)}</td><td>${p.trades}</td><td>${pct(p.win_rate)}</td><td class="${p.total >= 0 ? "pos" : "neg"}">${f(p.total)}</td></tr>`).join("")}</table></div>` : ""}
+    <details><summary>🧾 Recent dip trades</summary><table style="margin-top:8px"><tr><th>Ticker</th><th>Bought</th><th>Sold</th><th>Days</th><th>Return</th></tr>
+      ${st.recent.slice(0, 25).map(t => `<tr><td>${esc(t.symbol)}</td><td>${t.entry_date.slice(5)} @ ${t.entry}</td><td>${t.exit_date.slice(5)} @ ${t.exit}</td><td>${t.days}</td><td class="${t.ret >= 0 ? "pos" : "neg"}">${f(t.ret)}</td></tr>`).join("")}</table></details>
+  </div>`;
+  document.querySelectorAll(".seg button").forEach(b => b.onclick = () => { STYLE = b.dataset.st; renderDips(DIPS); });
+}
+
+async function load() {
+  const [l, h, d] = await Promise.all(["/api/latest", "/api/heatmap", "/api/dips"].map(u => fetch(u).then(r => r.json())));
+  render(l); renderHeat(h); renderDips(d);
+}
 
 async function poll() {
   const s = await (await fetch("/api/status")).json();

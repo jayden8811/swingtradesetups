@@ -146,4 +146,20 @@ def _features(df, spy_close):
     f["C_quality_part"] = np.nanmean([lin(gap_atr, 1.5, 4.0), lin(gap_rvol, 3, 8)], axis=0)
     f["C_stop"] = f["B_stop"]
     f["C_max_entry"] = f["B_max_entry"]
+
+    # --- Setup D: buy the dip in a long-term uptrend ---
+    r2 = rsi(c, 2)
+    hi20_now = h.rolling(20).max()
+    uptrend = (c > s200) & (s200 > s200.shift(20)) & (s50 > s200)
+    dip = 1 - c / hi20_now
+    f["D_uptrend"] = uptrend
+    f["D_rsi2"], f["D_dip"] = r2, dip
+    f["D"] = (uptrend & (r2 <= C.D_RSI2_MAX) & (dip >= C.D_MIN_DIP)).to_numpy()
+    f["D_quality"] = np.nanmean([lin(r2, 30, 0), lin(dip, 0.0, 0.12),
+                                 lin((c - s200) / a, 0, 6)], axis=0)
+    f["D_stop"] = c - C.D_STOP_ATR * a
+    f["D_t1"] = hi20_now                     # reclaim of the pre-dip high
+    f["D_t2"] = hi52
+    f["D_max_entry"] = c + 0.5 * a
+    f["sma5"] = sma(c, 5)
     return f

@@ -315,3 +315,17 @@ Position size at 1% account risk: shares = (0.01 × equity) / 3.30
 - **Setup quality** sub-scores use fixed linear scales (e.g., base depth 30%→0 to 8%→100), not percentile ranks.
 - **Baseline**: the formula 1/(1+RR) ignores the 30-day time stop. The baseline actually used is the backtested **random-entry** win rate under the same stop, target and time rules. All shrinkage and edge measurements are made relative to it.
 - **Volume dry-up (Setup A)**: measured as the quietest 5-day average in the 10 days before the breakout. Volume normally picks up right before a breakout, so a plain 10-day average almost never qualified (24 of 219 otherwise valid breakouts).
+
+---
+
+## Strategy Change: Buy the Dip (Setup D, now the default)
+Rules, the heat-map rating and the dip backtest live in `swing/setups.py`, `swing/heatmap.py` and `swing/dips.py`.
+The backtest holds one position per stock at a time. It compares two exit styles against random days in the same uptrending stocks, using the same exits.
+Results as of 2026-10-08:
+
+| Exit style | Past-year trades | Win rate | Avg per trade | Random uptrend days | 10-slot book (1y) | SPY (1y) |
+|---|---|---|---|---|---|---|
+| Exit at prior 20-day high (20-day max) | 4,908 | 43% | +0.16% | −0.06% | +3.2% | +16.2% |
+| Exit on first close above SMA5 (10-day max) | 6,005 | 61% | −0.03% | −0.14% | +12.7% | +16.2% |
+
+Since 2015 (prior-high exit), dips averaged +0.43% per trade, against +0.34% for random uptrend days. The edge over simply owning uptrending stocks is small. Neither exit style beat SPY buy-and-hold over the past year.

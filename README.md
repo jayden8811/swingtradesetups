@@ -13,9 +13,24 @@ export ALPACA_API_KEY_ID=...  ALPACA_API_SECRET_KEY=...   # free Alpaca account 
 export ANTHROPIC_API_KEY=...                              # optional: enables the 3 LLM layers
 
 python -m swing backtest   # one-time, about 15-30 min: calibrates the probabilities and holding times
+python -m swing dips       # about 5 min: how every qualifying dip played out (past year + since 2015)
 python -m swing            # opens http://localhost:8000 → 🔍 Run scan (best after 4:20pm ET)
 python -m swing scan       # same scan, printed in the terminal
 ```
+
+## 🛒 Active strategy: buy the dip
+- **Qualifies**: close above a rising 200-day SMA, 50-day SMA above the 200-day, RSI(2) ≤ 10, and close at least 5% below the 20-day high.
+- **Entry**: next open. A gap up of more than 0.5 ATR is skipped.
+- **Stop**: 2 × ATR below entry (trades risking more than 8% are skipped).
+- **Exit**: at the pre-dip 20-day high, or after 20 days.
+- **Other setups**: A, B and C are still in the code. Turn them back on with `SWING_SETUPS=A,B,C,D`.
+
+## 🗺️ Heat map
+The 120 most-traded stocks are grouped by sector and colored from red (avoid) to green (best dip buy).
+`rating = 0.40 × dip/oversold + 0.35 × trend + 0.25 × relative strength`
+- A stock not in an uptrend is capped at 45.
+- A stock that meets every dip rule (🛒) gets at least 75.
+- Tap a tile to see its rating breakdown, the scan's verdict, and its past-year dip trades.
 
 ## How a pick is made
 1. 🌎 **Universe**: US stocks ≥ $10 with ≥ $20M average daily dollar volume, and market cap ≥ $1B.

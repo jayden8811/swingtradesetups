@@ -21,6 +21,8 @@ def setup_quality(setup, row, rs_rank):
         return row["A_quality"]
     if setup == "B":
         return (2 * row["B_quality_part"] + rs_rank) / 3
+    if setup == "D":
+        return row["D_quality"]
     return row["C_quality_part"]
 
 

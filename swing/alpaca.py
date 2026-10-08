@@ -18,11 +18,11 @@ if os.environ.get("ALPACA_API_KEY_ID"):
     })
 
 
-def _get(url, params=None, tries=5):
+def _get(url, params=None, tries=8):
     for i in range(tries):
         r = _session.get(url, params=params, timeout=60)
-        if r.status_code == 429 or r.status_code >= 500:
-            time.sleep(2 ** i)
+        if r.status_code == 429 or r.status_code >= 500:   # free plan: ~200 requests/minute
+            time.sleep(float(r.headers.get("Retry-After") or min(60, 2 ** (i + 1))))
             continue
         r.raise_for_status()
         return r.json()
@@ -50,7 +50,7 @@ def _bars_chunk(symbols, start, end):
             return out
 
 
-def bars(symbols, start, end=None, chunk=200, workers=4, progress=None):
+def bars(symbols, start, end=None, chunk=200, workers=3, progress=None):
     """Daily adjusted bars -> {symbol: DataFrame[open, high, low, close, volume]} indexed by date."""
     if end is None:  # free plan cannot query the most recent 15 minutes of SIP data
         end = (datetime.now(timezone.utc) - timedelta(minutes=16)).isoformat()

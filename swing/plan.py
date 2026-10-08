@@ -30,28 +30,37 @@ def build(f, i, setup, high, entry=None):
         return None, f"risk {R / entry:.1%} > {C.MAX_RISK_PCT:.0%}"
     if R < C.MIN_RISK_ATR * atr:
         return None, "stop inside normal noise (<0.75 ATR)"
-    lv = resistance_levels(high, i)
-    above = lv[lv > entry + R]
-    t1 = min(above.min(), entry + C.MAX_RR_T1 * R) if len(above) else entry + C.MAX_RR_T1 * R
-    rr = (t1 - entry) / R
-    if rr < C.MIN_RR - 1e-9:
-        return None, f"resistance at {above.min():.2f} caps reward at {rr:.1f}R"
-    if setup == "A":
-        t2 = entry + float(row["A_t2_add"])
-    elif setup == "B":
-        t2 = float(row["B_t2"])
+    max_hold = C.MAX_HOLD
+    if setup == "D":   # dip buy: the pre-dip 20-day high is both the target and the resistance
+        t1, max_hold = float(row["D_t1"]), C.D_MAX_HOLD
+        rr = (t1 - entry) / R
+        if rr < C.D_MIN_RR - 1e-9:
+            return None, f"20-day high {t1:.2f} only {rr:.1f}R away"
+        t2 = max(float(row["D_t2"]), t1 + 0.5 * R)
     else:
-        t2 = entry + float(row["C_gap_size"])
-    t2 = max(t2, t1 + 0.5 * R)
+        lv = resistance_levels(high, i)
+        above = lv[lv > entry + R]
+        t1 = min(above.min(), entry + C.MAX_RR_T1 * R) if len(above) else entry + C.MAX_RR_T1 * R
+        rr = (t1 - entry) / R
+        if rr < C.MIN_RR - 1e-9:
+            return None, f"resistance at {above.min():.2f} caps reward at {rr:.1f}R"
+        if setup == "A":
+            t2 = entry + float(row["A_t2_add"])
+        elif setup == "B":
+            t2 = float(row["B_t2"])
+        else:
+            t2 = entry + float(row["C_gap_size"])
+        t2 = max(t2, t1 + 0.5 * R)
     return {"setup": setup, "entry": entry, "stop": stop, "R": R, "t1": t1, "t2": t2, "rr": rr,
             "atr": atr, "max_entry": float(row[f"{setup}_max_entry"]),
-            "risk_pct": R / entry, "cost_r": (C.SPREAD + 2 * C.SLIPPAGE) * entry / R}, None
+            "risk_pct": R / entry, "max_hold": max_hold, "cost_r": (C.SPREAD + 2 * C.SLIPPAGE) * entry / R}, None
 
 
-def simulate(o, h, l, c, i, plan, max_hold=C.MAX_HOLD):
+def simulate(o, h, l, c, i, plan, max_hold=None):
     """Enter at the next open; stop first if both levels touch on one bar (conservative).
     Returns dict(outcome in {win, loss, timeout}, r, days)."""
     entry, stop, t1, R = plan["entry"], plan["stop"], plan["t1"], plan["R"]
+    max_hold = max_hold or plan.get("max_hold", C.MAX_HOLD)
     last = min(len(c) - 1, i + max_hold)
     if last <= i:
         return None

@@ -123,3 +123,18 @@ def test_llm_layers_are_bounded(monkeypatch):
     cand["score_pre_l3"] = 70
     llm.layer3([cand], {"state": "Risk-On"}, 1)
     assert cand["l3_adj"] == 5 and cand["l3_pick"] and cand["card"]["thesis"] == "t"
+
+
+def test_dip_trades_one_position_per_stock():
+    from swing.dips import _one_at_a_time
+    t = [{"entry_date": "2026-01-02", "exit_date": "2026-01-06"}, None,
+         {"entry_date": "2026-01-05", "exit_date": "2026-01-08"},     # overlaps -> skipped
+         {"entry_date": "2026-01-07", "exit_date": "2026-01-09"}]
+    assert [x["entry_date"] for x in _one_at_a_time(t)] == ["2026-01-02", "2026-01-07"]
+
+
+def test_heatmap_rating_caps_and_floors():
+    from swing.heatmap import rating
+    base = {"D_rsi2": 50, "D_dip": 0.01, "close": 100, "sma200": 90, "D": False}
+    assert rating({**base, "D_uptrend": False}, 99)[0] <= 45
+    assert rating({**base, "D_uptrend": True, "D": True}, 1)[0] >= 75
