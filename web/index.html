@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Swing Setups</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<style>
+  :root {
+    --bg: #fafaf9; --card: #ffffff; --text: #1c1917; --muted: #78716c; --line: #e7e5e4;
+    --green: #15803d; --red: #b91c1c; --blue: #1d4ed8; --amber: #b45309; --soft: #f5f5f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0c0a09; --card: #1c1917; --text: #fafaf9; --muted: #a8a29e; --line: #292524;
+            --green: #4ade80; --red: #f87171; --blue: #93c5fd; --amber: #fbbf24; --soft: #292524; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+  main { max-width: 620px; margin: 0 auto; padding: 48px 16px 64px; text-align: center; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.02em; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; background: var(--soft); font-size: 13px; margin: 14px 4px 0; }
+  button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--text);
+           border-radius: 10px; padding: 9px 18px; }
+  button.primary { background: var(--text); color: var(--bg); border-color: var(--text); margin-top: 22px; }
+  button:disabled { opacity: .5; cursor: default; }
+  #log { color: var(--muted); font-size: 13px; min-height: 20px; margin-top: 10px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 26px 22px; margin-top: 28px; text-align: center; }
+  .label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .sym { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; margin: 2px 0 0; }
+  .name { color: var(--muted); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 22px 0 6px; }
+  .grid div { background: var(--soft); border-radius: 10px; padding: 10px 4px; }
+  .grid b { display: block; font-size: 17px; }
+  .grid small { color: var(--muted); font-size: 12px; }
+  .stats { display: flex; justify-content: center; gap: 22px; flex-wrap: wrap; margin: 18px 0 4px; font-size: 14px; }
+  .bar { display: flex; height: 8px; border-radius: 99px; overflow: hidden; margin: 14px auto 4px; max-width: 360px; background: var(--soft); }
+  .bar span:nth-child(1) { background: var(--green); } .bar span:nth-child(2) { background: var(--muted); } .bar span:nth-child(3) { background: var(--red); }
+  .legend { font-size: 12px; color: var(--muted); }
+  .score { margin-top: 16px; font-size: 13px; color: var(--muted); }
+  .section { text-align: left; margin-top: 22px; }
+  .section h3 { font-size: 13px; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  .section ul { margin: 0; padding-left: 20px; }
+  .section p { margin: 0; }
+  details { text-align: left; margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; text-align: center; list-style: none; }
+  .row { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; text-align: left; }
+  .row:last-child { border-bottom: 0; }
+  .meter { display: grid; grid-template-columns: 110px 1fr 34px; gap: 8px; align-items: center; font-size: 13px; margin: 4px 0; }
+  .meter i { display: block; height: 6px; border-radius: 6px; background: var(--blue); }
+  .meter em { display: block; background: var(--soft); border-radius: 6px; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .empty { font-size: 40px; margin-bottom: 6px; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 40px; }
+  @media (max-width: 480px) { .grid { grid-template-columns: repeat(2, 1fr); } .sym { font-size: 36px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>📈 Swing Setups</h1>
+  <div class="sub" id="asof">Rules find it · 🧠 LLMs judge it · you decide</div>
+  <div id="chips"></div>
+  <button class="primary" id="scan">🔍 Run scan</button>
+  <div id="log"></div>
+  <div id="out"></div>
+  <footer>Research tool, not financial advice. Probabilities come from backtests with survivorship bias and are haircut 30%.</footer>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const pct = x => x == null ? "–" : `${Math.round(x * 100)}%`;
+const sgn = x => x == null ? "–" : (x > 0 ? "+" : "") + x;
+const money = x => x == null ? "–" : `$${Number(x).toFixed(2)}`;
+const REG = {"Risk-On": "🟢", "Neutral": "🟡", "Risk-Off": "🔴"};
+const SETUP = {A: "📦 Base Breakout", B: "🪜 Pullback in Uptrend", C: "📣 Post-Earnings Drift"};
+const AGENT = {technical: "📊 Technical", fundamental: "🧾 Fundamental", news: "📰 News", positioning: "🐋 Positioning"};
+const BUCKET = {momentum: "🚀 Momentum", rs: "💪 Rel. strength", setup: "📐 Setup quality", volume: "🔊 Volume",
+                fundamental: "🧾 Fundamentals", positioning: "🐋 Positioning"};
+
+function ruleReasons(p) {
+  const d = p.digest || {}, m = d.setup_metrics || {}, r = (d.factors || {}).ranks_0_100 || {}, f = d.fundamentals || {};
+  const out = [];
+  if (p.setup === "A") out.push(`Broke out of a ${m.base_len_days}-day base (depth ${pct(m.base_depth)}) on ${m.breakout_rvol}× normal volume`);
+  if (p.setup === "B") out.push(`Bounced off a ${pct(m.pullback_from_20d_high)} pullback on light volume (${m.pullback_volume_ratio}× avg)`);
+  if (p.setup === "C") out.push(`Holding a ${m.gap_atr}-ATR earnings gap from ${m.gap_date} (${m.gap_rvol}× volume)`);
+  if (r.rs_raw != null) out.push(`Relative strength beats ${r.rs_raw}% of the universe; 12-1 momentum rank ${r.mom_12_1}`);
+  if (f.surprise_pct != null) out.push(`Last EPS surprise ${pct(f.surprise_pct)}${f.rev_yoy != null ? `, revenue ${sgn(Math.round(f.rev_yoy*100))}% YoY` : ""}`);
+  if (f.insider_buyers) out.push(`${f.insider_buyers} insider buyer(s) in the last 90 days`);
+  return out;
+}
+
+function meters(b) {
+  return Object.entries(b || {}).map(([k, v]) =>
+    `<div class="meter"><span>${BUCKET[k] || k}</span><em><i style="width:${Math.max(2, v || 0)}%"></i></em><b>${v ?? "–"}</b></div>`).join("");
+}
+
+function pickCard(p, top) {
+  const c = p.llm_card;
+  const reasons = c ? c.key_points : ruleReasons(p);
+  const risks = c ? c.risks : (p.l2 ? p.l2.objections.map(o => o.objection) : []);
+  const win = p.p_win * 100, to = p.p_timeout * 100, loss = Math.max(0, 100 - win - to);
+  const l1 = Object.entries(p.l1 || {}).map(([a, r]) =>
+    `<div class="row"><span>${AGENT[a]}</span><span>${sgn(r.stance)} · ${pct(r.confidence)}</span></div>
+     ${r.summary ? `<div class="sub" style="text-align:left;margin:-4px 0 6px">${esc(r.summary)}</div>` : ""}`).join("");
+  const l2 = p.l2 ? p.l2.objections.map((o, i) => {
+      const v = (p.l2.rulings.find(r => r.objection_index === i) || {}).verdict || "–";
+      return `<div class="row"><span>🐻 ${esc(o.objection)}</span><span>${{refuted:"✅",partially_refuted:"➖",stands:"⚠️"}[v] || ""} ${v.replace("_"," ")}</span></div>`;
+    }).join("") : "";
+  return `<div class="card">
+    <div class="label">${top ? "🎯 Top pick" : "Pick"} · ${SETUP[p.setup]}</div>
+    <div class="sym">${esc(p.symbol)}</div>
+    <div class="name">${esc(p.name || "")}${p.sector ? " · " + esc(p.sector) : ""}</div>
+    <div class="grid">
+      <div><small>🟢 Buy</small><b>${money(p.entry)}</b><small>max ${money(p.max_entry)}</small></div>
+      <div><small>🛑 Stop</small><b>${money(p.stop)}</b><small class="neg">−${p.risk_pct}%</small></div>
+      <div><small>🎯 Target 1</small><b>${money(p.t1)}</b><small class="pos">+${p.t1_pct}% · ${p.rr}R</small></div>
+      <div><small>🚀 Target 2</small><b>${money(p.t2)}</b><small class="pos">+${p.t2_pct}%</small></div>
+    </div>
+    <div class="bar"><span style="width:${win}%"></span><span style="width:${to}%"></span><span style="width:${loss}%"></span></div>
+    <div class="legend">✅ ${pct(p.p_win)} hit T1 · ⏳ ${pct(p.p_timeout)} time stop · ❌ ${pct(p.p_loss)} stopped · random entry = ${pct(p.baseline)}</div>
+    <div class="stats">
+      <span>⏱️ ~${p.days} days <span class="sub">(${p.days_range ? p.days_range.join("–") : "–"})</span></span>
+      <span>💰 EV ${sgn(p.ev_r)}R <span class="sub">(${sgn(p.ev_pct)}%)</span></span>
+      <span>⌛ exit by day ${p.time_stop}</span>
+    </div>
+    <div class="score">Quant ${p.quant} · 🧠 ${sgn(p.l1_adj)} · ⚔️ ${sgn(p.l2_penalty)} · ⚖️ ${sgn(p.l3_adj)} = <b>${p.final}</b></div>
+    ${c ? `<div class="section"><h3>💡 Thesis</h3><p>${esc(c.thesis)}</p></div>` : ""}
+    <div class="section"><h3>📌 Why</h3><ul>${(reasons || []).map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+    ${risks && risks.length ? `<div class="section"><h3>⚠️ Risks</h3><ul>${risks.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+    ${c ? `<div class="section"><h3>🚪 Invalidation</h3><p>${esc(c.invalidation)}</p></div>` : ""}
+    <details><summary>🔬 Details</summary>
+      <div class="section"><h3>Factor scores</h3>${meters(p.buckets)}</div>
+      ${l1 ? `<div class="section"><h3>🧠 Specialists</h3>${l1}</div>` : ""}
+      ${l2 ? `<div class="section"><h3>⚔️ Bull vs bear</h3>${l2}</div>` : ""}
+      <div class="section"><h3>📊 Probability source</h3><p class="sub">${esc(p.prob_source)}</p></div>
+      <div style="text-align:center;margin-top:16px"><button onclick='paper(${JSON.stringify({symbol:p.symbol,entry:p.entry,stop:p.stop,t1:p.t1})})'>📝 Paper trade (1% risk)</button></div>
+    </details>
+  </div>`;
+}
+
+function render(r) {
+  if (!r || r.empty) { $("#out").innerHTML = `<div class="card"><div class="empty">👋</div>No scan yet. Run one after the close.</div>`; return; }
+  const g = r.regime;
+  $("#asof").textContent = `Data as of ${r.asof} · ${r.universe} stocks · ${r.n_setups} setups`;
+  $("#chips").innerHTML = `<span class="chip">${REG[g.state]} ${g.state} ${g.score}/10</span>
+    <span class="chip">📊 breadth ${g.breadth_pct}%</span><span class="chip">😨 VIX ${g.vix ?? "–"}</span>
+    <span class="chip">${r.llm ? "🧠 LLM on" : "🧠 LLM off"}</span>${r.backtest.available ? "" : `<span class="chip">⚠️ no backtest</span>`}`;
+  let html = r.picks.length ? r.picks.map((p, i) => pickCard(p, i === 0)).join("")
+    : `<div class="card"><div class="empty">💤</div><b>No trade today</b>
+       <p class="sub">${esc((r.judge && r.judge.no_trade_reason) || `Nothing cleared the ${g.state} bar of ${r.threshold}.`)}</p></div>`;
+  if (r.runners_up.length) html += `<div class="card"><div class="label">👀 Runners-up</div>${r.runners_up.map(p =>
+      `<div class="row"><span><b>${esc(p.symbol)}</b> <span class="sub">${SETUP[p.setup]}</span></span>
+       <span>${p.final} · ${pct(p.p_win)} · ${sgn(p.ev_r)}R${p.veto ? " · 🚫" : ""}</span></div>`).join("")}</div>`;
+  $("#out").innerHTML = html;
+}
+
+async function load() { render(await (await fetch("/api/latest")).json()); }
+
+async function poll() {
+  const s = await (await fetch("/api/status")).json();
+  $("#log").textContent = s.error ? `❌ ${s.error}` : (s.log.slice(-1)[0] || "");
+  $("#scan").disabled = s.running;
+  if (s.running) setTimeout(poll, 1500); else load();
+}
+
+$("#scan").onclick = async () => { await fetch("/api/scan", {method: "POST"}); poll(); };
+
+async function paper(p) {
+  if (!confirm(`Place a PAPER bracket order for ${p.symbol}? (Alpaca paper account)`)) return;
+  const r = await (await fetch("/api/paper", {method: "POST", body: JSON.stringify(p)})).json();
+  alert(r.error ? `❌ ${r.error}` : `✅ ${r.qty} shares · ${r.status}`);
+}
+
+load(); poll();
+</script>
+</body>
+</html>

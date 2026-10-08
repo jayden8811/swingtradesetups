@@ -1,0 +1,8 @@
+numpy>=2.0
+pandas>=2.2
+requests>=2.31
+yfinance>=0.2.50
+pyarrow>=15
+matplotlib>=3.8
+anthropic>=1.0
+pytest>=8

@@ -303,3 +303,15 @@ Position size at 1% account risk: shares = (0.01 × equity) / 3.30
 7. **Monitoring:** track calibration with a reliability chart of predicted p vs. realized hit rate. If the gap exceeds 10 points over 50 trades, refit.
 
 *This is a research tool, not financial advice. Historical edges decay and can disappear.*
+
+---
+
+## Implementation Notes (v1 code vs. this spec)
+- **Fundamentals and positioning** use fixed absolute scales, not universe-wide ranks. Examples: EPS surprise −5%→0 to +15%→100, and revenue/EPS growth −10%→0 to +40%→100. Only the candidates are enriched, so pulling every ticker is unnecessary.
+- **Data source**: Yahoo (via `yfinance`) supplies earnings, insiders, short interest and VIX, because SEC EDGAR and FRED were not reachable from the build environment. Swapping in EDGAR Form 4 and XBRL data is a planned upgrade.
+- **Setup C in the backtest** uses a price/volume proxy for an earnings gap. Live, the gap must be confirmed by the fiscal-quarter timing or an earnings headline.
+- **Spread filter**: dropped, because free IEX quotes are too sparse. The $20M dollar-volume floor plus a fixed 0.05% spread cost per trade stand in for it.
+- **Backtest buckets** use the TechScore, the price-only part of the QuantScore, so the live lookup matches what was actually tested.
+- **Setup quality** sub-scores use fixed linear scales (e.g., base depth 30%→0 to 8%→100), not percentile ranks.
+- **Baseline**: the formula 1/(1+RR) ignores the 30-day time stop. The baseline actually used is the backtested **random-entry** win rate under the same stop, target and time rules. All shrinkage and edge measurements are made relative to it.
+- **Volume dry-up (Setup A)**: measured as the quietest 5-day average in the 10 days before the breakout. Volume normally picks up right before a breakout, so a plain 10-day average almost never qualified (24 of 219 otherwise valid breakouts).
